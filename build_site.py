@@ -12,8 +12,35 @@ def parse(fn):
 
 nbs = sorted(glob.glob("*.ipynb"), key=lambda f: (parse(f)[0], parse(f)[1]))
 print(f"Converting {len(nbs)} notebooks to HTML...")
+
+# nbconvert pages ship without a viewport tag and with code blocks that
+# overflow off-screen on mobile; inject both fixes into each page's <head>.
+MOBILE_FIX = (
+    '<meta name="viewport" content="width=device-width,initial-scale=1">'
+    '<style>'
+    'html,body{overflow-x:hidden}'
+    'body{-webkit-text-size-adjust:100%}'
+    '#notebook-container,.jp-Notebook,main{padding-left:8px!important;padding-right:8px!important;max-width:100%!important}'
+    'pre,.jp-OutputArea-output pre,.highlight pre,div.output_area pre'
+    '{overflow-x:auto!important;white-space:pre!important;max-width:100%;'
+    '-webkit-overflow-scrolling:touch}'
+    '.jp-Cell,.jp-CodeCell,.jp-InputArea,.jp-OutputArea,.jp-RenderedHTMLCommon'
+    '{max-width:100%!important;overflow-x:auto}'
+    'img,table{max-width:100%}'
+    'table{display:block;overflow-x:auto}'
+    '</style>'
+)
+
 for fn in nbs:
     subprocess.run(["jupyter", "nbconvert", "--to", "html", "--output-dir", OUT, fn], check=True)
+    out_path = os.path.join(OUT, os.path.splitext(fn)[0] + ".html")
+    with open(out_path, encoding="utf-8") as f:
+        page = f.read()
+    # drop any viewport tag nbconvert may add, then inject ours + CSS overrides
+    page = re.sub(r'<meta name="viewport"[^>]*>', '', page)
+    page = page.replace('</head>', MOBILE_FIX + '</head>', 1)
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(page)
 
 cards = []
 for fn in nbs:
