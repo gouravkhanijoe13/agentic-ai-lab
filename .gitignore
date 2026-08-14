@@ -11,3 +11,6 @@ venv/
 
 # quarantined broken git dir (safe to delete)
 _git_broken_DELETE_ME/
+
+# generated Pages build
+_site/
